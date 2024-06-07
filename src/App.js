@@ -80,12 +80,12 @@ const NumResults = ({ movies }) => {
   );
 };
 
-const Navbar = ({ movies }) => {
+const Navbar = ({ children }) => {
   return (
     <nav className="nav-bar">
+      {" "}
       <Logo />
-      <Search />
-      <NumResults movies={movies} />
+      {children}
     </nav>
   );
 };
@@ -112,21 +112,6 @@ const MovieList = ({ movies }) => {
         <Movie key={movie.imdbID} movie={movie} />
       ))}
     </ul>
-  );
-};
-
-const ListBox = ({ movies }) => {
-  const [isOpen1, setIsOpen1] = useState(true);
-  return (
-    <div className="box">
-      <button
-        className="btn-toggle"
-        onClick={() => setIsOpen1((open) => !open)}
-      >
-        {isOpen1 ? "–" : "+"}
-      </button>
-      {isOpen1 && <MovieList movies={movies} />}
-    </div>
   );
 };
 
@@ -192,44 +177,42 @@ const WatchedMovisList = ({ watched }) => {
   );
 };
 
-const WatchedBox = () => {
-  const [watched, _setWatched] = useState(tempWatchedData);
-  const [isOpen2, setIsOpen2] = useState(true);
-
+const Box = ({ children }) => {
+  const [isOpen, setIsOpen] = useState(true);
   return (
     <div className="box">
-      <button
-        className="btn-toggle"
-        onClick={() => setIsOpen2((open) => !open)}
-      >
-        {isOpen2 ? "–" : "+"}
+      <button className="btn-toggle" onClick={() => setIsOpen((open) => !open)}>
+        {isOpen ? "–" : "+"}
       </button>
-      {isOpen2 && (
-        <>
-          <WatchedSummary watched={watched} />
-          <WatchedMovisList watched={watched} />
-        </>
-      )}
+      {isOpen && children}
     </div>
   );
 };
 
-const Main = ({ movies }) => {
-  return (
-    <main className="main">
-      <ListBox movies={movies} />
-      <WatchedBox />
-    </main>
-  );
+const Main = ({ children }) => {
+  return <main className="main">{children}</main>;
 };
 
 export default function App() {
   const [movies, _setMovies] = useState(tempMovieData);
+  const [watched, _setWatched] = useState(tempWatchedData);
   return (
     <>
-      <Navbar movies={movies} />
-      {/* if we pass the state "movies" as a prop to the component "Navbar", each time that "movies" state is updated, "Navbar" will be re-rendered since it uses this state. If we pass "movies.length" as a prop to "Navbar", still "Navbar" will be re-rendered each time "movies" is updated because updating "movies" makes "App" to be recalled and therefore return statement of the "App" component will be executed each time, which means the "Navbar()" function or component will be called again each time with the new value of the "movies.length"*/}
-      <Main movies={movies} />
+      <Navbar>
+        <Search />
+        <NumResults movies={movies} />
+      </Navbar>
+
+      <Main>
+        <Box>
+          <MovieList movies={movies} />
+        </Box>
+
+        <Box>
+          <WatchedSummary watched={watched} />
+          <WatchedMovisList watched={watched} />
+        </Box>
+      </Main>
     </>
   );
 }
