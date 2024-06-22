@@ -1,4 +1,5 @@
 import { useState } from "react";
+import StarRating from "./StarRating";
 
 const tempMovieData = [
   {
@@ -213,6 +214,7 @@ export default function App() {
           <WatchedMovisList watched={watched} />
         </Box>
       </Main>
+      <StarRating maxRating={5} />
     </>
   );
 }
