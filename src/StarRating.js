@@ -6,58 +6,79 @@ const containerStyle = {
   gap: "16px",
 };
 
-const startContainerStyle = {
+const starContainerStyle = {
   display: "flex",
 };
 
 const textStyle = {
   lineHeight: "1",
-  margine: "0",
+  margin: "0",
 };
 
-const starStyle = {
-  width: "48px",
-  height: "48px",
-  display: "block",
-  cursor: "pointer",
-};
-
-const Star = ({ full, onRate }) => {
-  return (
-    <span role="button" style={starStyle} onClick={onRate}>
-      {full ? (
-        <img src="./full-star.svg" alt="full star" />
-      ) : (
-        <img src="./empty-star.svg" alt="empty star" />
-      )}
-    </span>
-  );
-};
-
-const StarRating = ({ maxRating = 5 }) => {
+const StarRating = ({ maxRate = 3, color, size }) => {
   const [rating, setRating] = useState(0);
+  const [tempRate, setTempRate] = useState(rating);
 
-  const handleRate = function (rating) {
-    setRating(rating + 1);
+  const handleRating = (i, event) => {
+    // console.log(i);
+    // console.log(event);
+    setRating(i + 1);
+  };
+
+  const handleChangingRate = (i, event) => {
+    setTempRate(i + 1);
+  };
+
+  const handleMouseLeave = (i, event) => {
+    setTempRate(rating);
   };
 
   return (
     <div style={containerStyle}>
-      <div style={startContainerStyle}>
-        {Array.from({ length: maxRating }, (_, i) => {
+      <div style={starContainerStyle}>
+        {Array.from({ length: maxRate }, (_, i) => {
           return (
             <Star
+              isEmpty={i + 1 > tempRate}
               key={i}
-              i={i}
-              rate={rating}
-              onRate={handleRate.bind(this, i)}
-              full={rating >= i + 1}
+              onRate={handleRating.bind(null, i)}
+              onChangingRate={handleChangingRate.bind(null, i)}
+              onMouseLeave={handleMouseLeave.bind(null, i)}
+              color={color}
+              size={size}
             />
           );
         })}
       </div>
-      <p style={textStyle}>{rating || ""}</p>
+      <p style={textStyle}>{tempRate || ""}</p>
     </div>
+  );
+};
+
+const Star = ({
+  onRate,
+  isEmpty,
+  onChangingRate,
+  onMouseLeave,
+  color,
+  size,
+}) => {
+  const starStyle = {
+    width: `${size}px`,
+    height: "48px",
+    display: "block",
+    cursor: "pointer",
+  };
+  return (
+    <img
+      onMouseLeave={onMouseLeave}
+      onMouseEnter={onChangingRate}
+      onClick={onRate}
+      role="button"
+      style={starStyle}
+      src={isEmpty ? "empty-star.svg" : "full-star.svg"}
+      alt="Empty Star"
+    />
   );
 };
 
