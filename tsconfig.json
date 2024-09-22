@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true // type Test = string | null; ====> without this config, type of Test will be evaluated to string instead of string  null
+    // "allowUnusedLabels": true
+  }
+}
