@@ -104,7 +104,8 @@ export default function App() {
         return data;
       } catch (error) {
         console.log(error);
-        setError(error.message);
+        if (error instanceof Error) setError(error.message);
+        else setError("Unknown Error!");
         return [];
       } finally {
         setIsLoading(false);
