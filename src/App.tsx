@@ -90,7 +90,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [query, setQuery] = useState<string>('');
-  const [selectedId, setSelectedId] = useState<string | null>('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedImdbId, setSelectedImdbId] = useState<string | null>(null);
 
   /* useEffect(() => {
     console.log("Only After the initial render (after componentDidMount)");
@@ -173,14 +174,14 @@ export default function App() {
     } */
   }, [query, error, movies.length]); // if the object (array) "movies" is the dependancy, instead of the primitive value "movies.length", an infinite loop will happen. because at the beginning (componentDidMount) "query.length < 3" is true, and setMovies([]) is executed. Although the state "movies" was already [], but because [] !== [], it means the state is updated (a new object or array in a new memory address is created), therefore after the re-render, the useState() callback function will be executed again and it continues. But when the dependancy is movies.length, which is a number, because 0 === 0, the dependancy is not updated, so after the re-render, the useEffect() callback function will not be executed.
 
-  const handleSelectedMovie = (id: string | null) => {
-    console.log('selectedid:', selectedId);
-    console.log('id:', id);
-    id === selectedId ? setSelectedId('') : setSelectedId(id);
+  const handleSelectedMovie = (id: number | null, imdbId: string | null) => {
+    setSelectedImdbId(imdbId);
+    id === selectedId ? setSelectedId(null) : setSelectedId(id);
   };
 
   const handleCloseSelectedMovie = () => {
-    setSelectedId('');
+    setSelectedImdbId(null);
+    setSelectedId(null);
   };
 
   return (
@@ -203,10 +204,10 @@ export default function App() {
           )}
         </Box>
         <Box>
-          {selectedId !== '' ? (
+          {selectedId !== null ? (
             <SelectedMovieInfo
               key={selectedId} // without key, one instance of the component "SelectedMovieInfo" is created and when we click on other movies in the list, different props will be passed to the same component instance. so the state "selectedMovie" in the component "SelectedMovieInfo" will not be reset to null, and we cannot see the loader. Also, after clicking on another movie, the states that are not passed as prop will be preserved. For example, the rating will not change
-              selectedId={selectedId}
+              selectedImdbId={selectedImdbId}
               onCloseSelectedMovie={handleCloseSelectedMovie}
             />
           ) : (
@@ -312,7 +313,7 @@ const Box = ({ children }: BoxPropsType) => {
 
 type MovieListPropsType = {
   movies: Film[];
-  onHandleSelectMovie: (id: string | null) => void;
+  onHandleSelectMovie: (id: number | null, imdbId: string | null) => void;
 };
 
 const MovieList = ({ movies, onHandleSelectMovie }: MovieListPropsType) => {
@@ -332,12 +333,18 @@ const MovieList = ({ movies, onHandleSelectMovie }: MovieListPropsType) => {
 
 type MoviePropsType = {
   movie: Film;
-  onHandleSelectMovie: (id: string | null) => void;
+  onHandleSelectMovie: (id: number | null, imdbId: string | null) => void;
 };
 
 const Movie = ({ movie, onHandleSelectMovie }: MoviePropsType) => {
   return (
-    <li onClick={onHandleSelectMovie.bind(null, movie.show.externals.imdb)}>
+    <li
+      onClick={onHandleSelectMovie.bind(
+        null,
+        movie.show.id,
+        movie.show.externals.imdb
+      )}
+    >
       <img src={movie.show.image?.medium} alt={`${movie.show.name} poster`} />
       <h3>{movie.show.name}</h3>
       <div>
@@ -428,12 +435,12 @@ const WatchedMovie = ({ movie }: WatchedMoviePropsType) => {
 };
 
 type SelectedMoviePropsType = {
-  selectedId: string | null;
+  selectedImdbId: string | null;
   onCloseSelectedMovie: () => void;
 };
 
 const SelectedMovieInfo = ({
-  selectedId,
+  selectedImdbId,
   onCloseSelectedMovie,
 }: SelectedMoviePropsType) => {
   const [selectedMovie, setSelectedMovie] = useState<SelectedFilm | null>(null);
@@ -448,7 +455,6 @@ const SelectedMovieInfo = ({
     rating: { average } = { average: null },
     summary,
   } = selectedMovie ?? {}; // if selectedMovie is null or undefined, then destruct {}. ({} does not have the property "name", so selectedMovie.name will be undefined. Therefore, variable "name" will have the value "undefined". but for nested, destructures, it must again be checked: {}.externals is undefined, so {}.externals.imdb is an error) => externals: { imdb } = { imdb: null } means: if the property "externals" does not exist in the object which is being destructed, e.g. {}, then assign the default value {imdb: null} to the property "externals" and then destruct "externals"
-  console.log('selectedMovie:', selectedMovie);
   const summaryText = getSummary(summary);
   useEffect(() => {
     // the return data type cannot be Promise<SelectedFilm> | Promise<null>
@@ -456,7 +462,7 @@ const SelectedMovieInfo = ({
       setIsLoading(true);
       try {
         const response = await fetch(
-          `https://api.tvmaze.com/lookup/shows?imdb=${selectedId}`
+          `https://api.tvmaze.com/lookup/shows?imdb=${selectedImdbId}`
         );
         const data = await response.json();
         // if (data?.status)
@@ -467,7 +473,7 @@ const SelectedMovieInfo = ({
       } catch (error) {
         console.log(error);
         // return null;
-        return null;
+        return Promise.reject(null);
       } finally {
         setIsLoading(false);
         // setSelectedMovie(null)
@@ -475,7 +481,7 @@ const SelectedMovieInfo = ({
     };
 
     fetchSelectedMovie();
-  }, [selectedId]);
+  }, [selectedImdbId]);
 
   return (
     <div className='details'>
