@@ -1,39 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import StarRating from './StarRating/StarRating';
 
-const tempMovieData = [
-  {
-    score: 0.6,
-    show: {
-      id: 618,
-      name: 'Better Call Saul',
-      premiered: '2015-02-08',
-      image: {
-        original:
-          'https://static.tvmaze.com/uploads/images/original_untouched/501/1253515.jpg',
-      },
-    },
-  },
-];
-
-const tempWatchedData = [
-  {
-    score: 0.6,
-    show: {
-      id: 618,
-      name: 'Better Call Saul',
-      premiered: '2015-02-08',
-      image: {
-        original:
-          'https://static.tvmaze.com/uploads/images/original_untouched/501/1253515.jpg',
-      },
-      runtime: 60,
-      rating: { average: 8.6 },
-      userRating: 8.5,
-    },
-  },
-];
-
 const getSummary = (summary: string | null | undefined) => {
   if (!summary) return '';
   let text = summary;
@@ -147,7 +114,7 @@ export default function App() {
         setError('');
         return data;
       } catch (error) {
-        console.log(error);
+        // console.log(error);
         if (error instanceof Error) setError(error.message);
         else setError('Unknown Error!');
         return [];
@@ -172,6 +139,8 @@ export default function App() {
       console.log("ERROR");
       console.log(error?.messages);
     } */
+
+    // if we search for the movie abcd123, the first request will be sent when the third character is entered (this is a condition applied before calling the fetch()) so the first request will be with the query "abc", then immediately another request will be sent with the query "abcd", and then with "abcd1" and so on. if we do not cancel the previous request before sending a new http request (in case of typing fast or a slow connection), multiple issues might happen which are receiving and downloading large unneccessary data, each request that is sent might slow down the other requests, and finally if an unimportant request takes longer than the other requests (e.g. the request for the search "abc" takes longer than the final request which is "abc123") then the response for that unimportant request is the last response that is received and the final update of the states will be based on that response
   }, [query, error, movies.length]); // if the object (array) "movies" is the dependancy, instead of the primitive value "movies.length", an infinite loop will happen. because at the beginning (componentDidMount) "query.length < 3" is true, and setMovies([]) is executed. Although the state "movies" was already [], but because [] !== [], it means the state is updated (a new object or array in a new memory address is created), therefore after the re-render, the useState() callback function will be executed again and it continues. But when the dependancy is movies.length, which is a number, because 0 === 0, the dependancy is not updated, so after the re-render, the useEffect() callback function will not be executed.
 
   const handleSelectedMovie = (id: number | null, imdbId: string | null) => {
@@ -182,6 +151,22 @@ export default function App() {
   const handleCloseSelectedMovie = () => {
     setSelectedImdbId(null);
     setSelectedId(null);
+  };
+
+  const handleAddWatchedMovie = (movie: WatchedFilm) => {
+    setWatched(prevState => {
+      if (
+        prevState.some(watchedMovie => watchedMovie.show.id === movie.show.id)
+      )
+        return prevState;
+      return [...prevState, movie];
+    });
+  };
+
+  const handleRemoveWatchedMovie = (watchedMovieId: number) => {
+    setWatched(prevState =>
+      prevState.filter(watchedMovie => watchedMovie.show.id !== watchedMovieId)
+    );
   };
 
   return (
@@ -209,11 +194,16 @@ export default function App() {
               key={selectedId} // without key, one instance of the component "SelectedMovieInfo" is created and when we click on other movies in the list, different props will be passed to the same component instance. so the state "selectedMovie" in the component "SelectedMovieInfo" will not be reset to null, and we cannot see the loader. Also, after clicking on another movie, the states that are not passed as prop will be preserved. For example, the rating will not change
               selectedImdbId={selectedImdbId}
               onCloseSelectedMovie={handleCloseSelectedMovie}
+              onAddWatchedMovie={handleAddWatchedMovie}
+              watched={watched}
             />
           ) : (
             <>
               <WatchedSummary watched={watched} />
-              <WatchedMoviesList watched={watched} />
+              <WatchedMoviesList
+                watched={watched}
+                onRemoveWatchedMovie={handleRemoveWatchedMovie}
+              />
             </>
           )}
         </Box>
@@ -378,15 +368,15 @@ const WatchedSummary = ({ watched }: WatchedSummaryPropsType) => {
         </p>
         <p>
           <span>⭐️</span>
-          <span>{avgImdbRating}</span>
+          <span>{avgImdbRating?.toFixed(1)}</span>
         </p>
         <p>
           <span>🌟</span>
-          <span>{avgUserRating}</span>
+          <span>{avgUserRating?.toFixed(1)}</span>
         </p>
         <p>
           <span>⏳</span>
-          <span>{avgRuntime} min</span>
+          <span>{avgRuntime?.toFixed(1)} min</span>
         </p>
       </div>
     </div>
@@ -395,13 +385,21 @@ const WatchedSummary = ({ watched }: WatchedSummaryPropsType) => {
 
 type WatchedMoviesListPropsType = {
   watched: WatchedFilm[];
+  onRemoveWatchedMovie: (watchedMovieId: number) => void;
 };
 
-const WatchedMoviesList = ({ watched }: WatchedMoviesListPropsType) => {
+const WatchedMoviesList = ({
+  watched,
+  onRemoveWatchedMovie,
+}: WatchedMoviesListPropsType) => {
   return (
     <ul className='list'>
       {watched.map(movie => (
-        <WatchedMovie key={movie.show.id} movie={movie} />
+        <WatchedMovie
+          key={movie.show.id}
+          movie={movie}
+          onRemoveWatchedMovie={onRemoveWatchedMovie}
+        />
       ))}
     </ul>
   );
@@ -409,9 +407,13 @@ const WatchedMoviesList = ({ watched }: WatchedMoviesListPropsType) => {
 
 type WatchedMoviePropsType = {
   movie: WatchedFilm;
+  onRemoveWatchedMovie: (watchedMovieId: number) => void;
 };
 
-const WatchedMovie = ({ movie }: WatchedMoviePropsType) => {
+const WatchedMovie = ({
+  movie,
+  onRemoveWatchedMovie,
+}: WatchedMoviePropsType) => {
   return (
     <li>
       <img src={movie.show.image?.medium} alt={`${movie.show.name} poster`} />
@@ -430,6 +432,12 @@ const WatchedMovie = ({ movie }: WatchedMoviePropsType) => {
           <span>{movie.show.runtime} min</span>
         </p>
       </div>
+      <button
+        className='btn-delete'
+        onClick={onRemoveWatchedMovie.bind(null, movie.show.id)}
+      >
+        &times;
+      </button>
     </li>
   );
 };
@@ -437,15 +445,22 @@ const WatchedMovie = ({ movie }: WatchedMoviePropsType) => {
 type SelectedMoviePropsType = {
   selectedImdbId: string | null;
   onCloseSelectedMovie: () => void;
+  onAddWatchedMovie: (movie: WatchedFilm) => void;
+  watched: WatchedFilm[];
 };
 
 const SelectedMovieInfo = ({
   selectedImdbId,
   onCloseSelectedMovie,
+  onAddWatchedMovie,
+  watched,
 }: SelectedMoviePropsType) => {
   const [selectedMovie, setSelectedMovie] = useState<SelectedFilm | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [userRating, setUserRating] = useState<number>(0);
+  // const [isInWatchedList, setIsInWatchedList] = useState<boolean>(false);
   const {
+    id,
     name,
     image,
     externals: { imdb } = { imdb: null },
@@ -455,6 +470,17 @@ const SelectedMovieInfo = ({
     rating: { average } = { average: null },
     summary,
   } = selectedMovie ?? {}; // if selectedMovie is null or undefined, then destruct {}. ({} does not have the property "name", so selectedMovie.name will be undefined. Therefore, variable "name" will have the value "undefined". but for nested, destructures, it must again be checked: {}.externals is undefined, so {}.externals.imdb is an error) => externals: { imdb } = { imdb: null } means: if the property "externals" does not exist in the object which is being destructed, e.g. {}, then assign the default value {imdb: null} to the property "externals" and then destruct "externals"
+
+  // "isInWatchedList" must be a "derived state". If it is a state, as commented above, it will not work. Because each time the "+ add to list" button is clicked, this component (SelectedMovieInfo) is unmounted and the next time that a "Movie" is selected in the "MovieList", a new instance of this component will be created with a reseted state. But a "derived state" works because on each mount, the derived state "isInWatchedList" is initialized based on the state "watched" which is a list of the watched movies and is the state of the component "App" therefore after the component "SelectedMovieInfo" is unmounted, the state "watched" is preserved because the component "App" is re-rendered but it is not unmounted (untill the page is refreshed).
+  // derived state: (1)if updating the state A is dependant on state B, probably state A must be a derived state instead of a state (2)the value of the state is needed on the first render (mount) and in each re-render during the render phase (during the function call) so that the value can be immediately used in the return statement (JSX). (using a value (derived state) immediately, instead of creating a state and update it using an "event handler or useEffect()" and using the updated state after the browser paint). for example, when a "Movie" is clicked and the "SelectedMovieInfo" component is rendered (called), the derived state "isInWatchedList" is initialized immediately based on a parent state and is used in the return statement and the component is mounted and the UI is painted based on that value
+  const isInWatchedList = watched
+    .map(watchedMovie => watchedMovie.show.id)
+    .includes(id!);
+
+  const selectedMovieUserRating = watched.find(
+    watchedMovie => watchedMovie.show.id === id
+  )?.show.userRating;
+
   const summaryText = getSummary(summary);
   useEffect(() => {
     // the return data type cannot be Promise<SelectedFilm> | Promise<null>
@@ -483,6 +509,39 @@ const SelectedMovieInfo = ({
     fetchSelectedMovie();
   }, [selectedImdbId]);
 
+  // after clicking on a "Movie" (if the movie has the DETAILS), the "render" message will be logged 3 times and the "clean up" message will be logged 2 times. each of them will be called once because of the "react strict mode". so there are 2 real logs for "render" message and 1 real log for the "clean up" message. First the component is rendered, then painted, and then useEffec() call back function is called (1st real render message is logged). but because the other useEffec() updates a state, the component is re-rendered. this re-render causese the "name, which is in the dependancy array" to update (because the other state (selectedMovie) is updated so name is selectedMovie.name). it will cause this useEffec() callback function to be called again, but before that the clean up function is called (the real clean up message). and now, the useEffec() callback function is called again to sync the effect with the state (2nd real render message)
+  useEffect(() => {
+    console.log('render or re-render');
+    document.title = name || 'usePopcorn';
+    return () => {
+      document.title = 'usePopcorn';
+      console.log(
+        `component 'SelectedMovieInfo' is re-rendered or unmounted. ${name}` // even after the component is unmounted and it is out of the stack, the clean up callback function which is registered in the event loop has access to the variable "name". This is because of "closure". The clean up callback function has access to all the variables not only in the scope of the useEffect(), but also in the scope of the "SelectedMovieInfo" function
+      );
+    };
+  }, [name]);
+
+  const handleAddWatchedMovie = () => {
+    if (!selectedMovie) return;
+    const watchedMovie: WatchedFilm = {
+      score: average,
+      show: {
+        externals: { imdb, thetvdb: null, tvrage: null },
+        id: id!,
+        image: image!,
+        name: name!,
+        premiered: premiered!,
+        rating: {
+          average,
+        },
+        runtime: runtime!,
+        userRating,
+      },
+    };
+    onAddWatchedMovie(watchedMovie);
+    onCloseSelectedMovie();
+  };
+
   return (
     <div className='details'>
       {isLoading ? (
@@ -497,7 +556,6 @@ const SelectedMovieInfo = ({
             <div className='details-overview'>
               <h2>{name}</h2>
               <p>
-                {' '}
                 {premiered} &bull;{runtime}{' '}
               </p>
               <p>{genres?.join(', ')}</p>
@@ -507,10 +565,27 @@ const SelectedMovieInfo = ({
               </p>
             </div>
           </header>
+
           <section>
             <div className='rating'>
-              <StarRating maxRating={10} size={24} />
+              {!isInWatchedList ? (
+                <>
+                  <StarRating
+                    maxRating={10}
+                    size={24}
+                    setRateState={setUserRating}
+                  />
+                  {userRating > 0 && (
+                    <button onClick={handleAddWatchedMovie} className='btn-add'>
+                      + Add to List
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p>You have already rated {selectedMovieUserRating}</p>
+              )}
             </div>
+
             <em>{summaryText}</em>
           </section>
         </>
