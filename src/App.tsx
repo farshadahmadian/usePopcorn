@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import StarRating from './StarRating/StarRating';
 
 const getSummary = (summary: string | null | undefined) => {
@@ -60,6 +60,27 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedImdbId, setSelectedImdbId] = useState<string | null>(null);
 
+  const handleCloseSelectedMovie = useCallback(() => {
+    setSelectedImdbId(null);
+    setSelectedId(null);
+  }, []);
+
+  const handleAddWatchedMovie = (movie: WatchedFilm) => {
+    setWatched(prevState => {
+      if (
+        prevState.some(watchedMovie => watchedMovie.show.id === movie.show.id)
+      )
+        return prevState;
+      return [...prevState, movie];
+    });
+  };
+
+  const handleRemoveWatchedMovie = (watchedMovieId: number) => {
+    setWatched(prevState =>
+      prevState.filter(watchedMovie => watchedMovie.show.id !== watchedMovieId)
+    );
+  };
+
   /* useEffect(() => {
     console.log("Only After the initial render (after componentDidMount)");
   }, [])
@@ -96,12 +117,15 @@ export default function App() {
   // }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchData = async function (): Promise<WatchedFilm[]> {
       try {
         // if query.length >= 3 is set as a condition, and if when the search query has exactly 3 characters no movies can be found, at the same moment the both states "isLoading" and "error" will be true, and in the return statement, for one moment "is Loading" is painted and immediately after that "no result" is painted. But, at any moment, only and exactly one of the 3 react elements inside the <Box></Box> (in the return statement) must be painted
         if (!error && query.length >= 4 && !movies.length) setIsLoading(true);
         const response = await fetch(
-          `https://api.tvmaze.com/search/shows?q=${query}`
+          `https://api.tvmaze.com/search/shows?q=${query}`,
+          { signal: controller.signal }
         );
 
         // if (!response.ok) {
@@ -115,8 +139,9 @@ export default function App() {
         return data;
       } catch (error) {
         // console.log(error);
-        if (error instanceof Error) setError(error.message);
-        else setError('Unknown Error!');
+        if (error instanceof Error && error.name !== 'AbortError')
+          setError(error.message);
+        else if (!(error instanceof Error)) setError('Unknown Error!');
         return [];
       } finally {
         setIsLoading(false);
@@ -129,6 +154,8 @@ export default function App() {
       setIsLoading(false);
       return;
     }
+
+    handleCloseSelectedMovie();
     fetchData();
 
     /* try {
@@ -141,32 +168,14 @@ export default function App() {
     } */
 
     // if we search for the movie abcd123, the first request will be sent when the third character is entered (this is a condition applied before calling the fetch()) so the first request will be with the query "abc", then immediately another request will be sent with the query "abcd", and then with "abcd1" and so on. if we do not cancel the previous request before sending a new http request (in case of typing fast or a slow connection), multiple issues might happen which are receiving and downloading large unneccessary data, each request that is sent might slow down the other requests, and finally if an unimportant request takes longer than the other requests (e.g. the request for the search "abc" takes longer than the final request which is "abc123") then the response for that unimportant request is the last response that is received and the final update of the states will be based on that response
-  }, [query, error, movies.length]); // if the object (array) "movies" is the dependancy, instead of the primitive value "movies.length", an infinite loop will happen. because at the beginning (componentDidMount) "query.length < 3" is true, and setMovies([]) is executed. Although the state "movies" was already [], but because [] !== [], it means the state is updated (a new object or array in a new memory address is created), therefore after the re-render, the useState() callback function will be executed again and it continues. But when the dependancy is movies.length, which is a number, because 0 === 0, the dependancy is not updated, so after the re-render, the useEffect() callback function will not be executed.
+    return () => {
+      controller.abort();
+    };
+  }, [query, error, movies.length, handleCloseSelectedMovie]); // if the object (array) "movies" is the dependency, instead of the primitive value "movies.length", an infinite loop will happen. because at the beginning (componentDidMount) "query.length < 3" is true, and setMovies([]) is executed. Although the state "movies" was already [], but because [] !== [], it means the state is updated (a new object or array in a new memory address is created), therefore after the re-render, the useState() callback function will be executed again and it continues. But when the dependency is movies.length, which is a number, because 0 === 0, the dependency is not updated, so after the re-render, the useEffect() callback function will not be executed.
 
   const handleSelectedMovie = (id: number | null, imdbId: string | null) => {
     setSelectedImdbId(imdbId);
     id === selectedId ? setSelectedId(null) : setSelectedId(id);
-  };
-
-  const handleCloseSelectedMovie = () => {
-    setSelectedImdbId(null);
-    setSelectedId(null);
-  };
-
-  const handleAddWatchedMovie = (movie: WatchedFilm) => {
-    setWatched(prevState => {
-      if (
-        prevState.some(watchedMovie => watchedMovie.show.id === movie.show.id)
-      )
-        return prevState;
-      return [...prevState, movie];
-    });
-  };
-
-  const handleRemoveWatchedMovie = (watchedMovieId: number) => {
-    setWatched(prevState =>
-      prevState.filter(watchedMovie => watchedMovie.show.id !== watchedMovieId)
-    );
   };
 
   return (
@@ -483,12 +492,15 @@ const SelectedMovieInfo = ({
 
   const summaryText = getSummary(summary);
   useEffect(() => {
+    const controller = new AbortController();
+
     // the return data type cannot be Promise<SelectedFilm> | Promise<null>
     const fetchSelectedMovie = async (): Promise<SelectedFilm | null> => {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `https://api.tvmaze.com/lookup/shows?imdb=${selectedImdbId}`
+          `https://api.tvmaze.com/lookup/shows?imdb=${selectedImdbId}`,
+          { signal: controller.signal }
         );
         const data = await response.json();
         // if (data?.status)
@@ -497,9 +509,11 @@ const SelectedMovieInfo = ({
         // return data;
         return Promise.resolve(data);
       } catch (error) {
-        console.log(error);
-        // return null;
-        return Promise.reject(null);
+        if (error?.name !== 'AbortError') console.log(error);
+        // return null; // async function returns a promise. the returned promise will be a "fulfilled (resolved)" promise with the result null
+        return Promise.resolve(null); // Promise.resolve(null) returns a promise which is resolved with the value null
+
+        // return Promise.reject(null); // Promise.reject(null) returns a rejected promise with the result null. a rejected promise throws an error instance (exception)
       } finally {
         setIsLoading(false);
         // setSelectedMovie(null)
@@ -507,9 +521,13 @@ const SelectedMovieInfo = ({
     };
 
     fetchSelectedMovie();
+
+    return () => {
+      controller.abort();
+    };
   }, [selectedImdbId]);
 
-  // after clicking on a "Movie" (if the movie has the DETAILS), the "render" message will be logged 3 times and the "clean up" message will be logged 2 times. each of them will be called once because of the "react strict mode". so there are 2 real logs for "render" message and 1 real log for the "clean up" message. First the component is rendered, then painted, and then useEffec() call back function is called (1st real render message is logged). but because the other useEffec() updates a state, the component is re-rendered. this re-render causese the "name, which is in the dependancy array" to update (because the other state (selectedMovie) is updated so name is selectedMovie.name). it will cause this useEffec() callback function to be called again, but before that the clean up function is called (the real clean up message). and now, the useEffec() callback function is called again to sync the effect with the state (2nd real render message)
+  // after clicking on a "Movie" (if the movie has the DETAILS), the "render" message will be logged 3 times and the "clean up" message will be logged 2 times. each of them will be called once because of the "react strict mode". so there are 2 real logs for "render" message and 1 real log for the "clean up" message. First the component is rendered, then painted, and then useEffec() call back function is called (1st real render message is logged). but because the other useEffec() updates a state, the component is re-rendered. this re-render causese the "name, which is in the dependency array" to update (because the other state (selectedMovie) is updated so name is selectedMovie.name). it will cause this useEffec() callback function to be called again, but before that the clean up function is called (the real clean up message). and now, the useEffec() callback function is called again to sync the effect with the state (2nd real render message)
   useEffect(() => {
     console.log('render or re-render');
     document.title = name || 'usePopcorn';
@@ -520,6 +538,19 @@ const SelectedMovieInfo = ({
       );
     };
   }, [name]);
+
+  useEffect(() => {
+    const handlePressEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseSelectedMovie();
+        console.log(event.code);
+      }
+    };
+    document.addEventListener('keydown', handlePressEscape); // 1)when this component (SelectedMovieInfo) is rendered for the first time (mounted) "handlePressEscape" event handler function is registered in the event loop (empty dependency array => actually the dependency array is not empty but the function definition "onCloseSelectedMovie" is memoized using useCallback() hook with an empty array dependency in the App component, and since its "reference" is passed (prop drilling) to this component without any modification, it will never change). If the event handler is not removed by the clean up callback function, this event handler will be called when the related event is triggered even if this component is unmounted. 2)The other consequence of not using the clean up callback function is that, whenever a new Movie is clicked, a new event handler is registered in the event loop (because a new instance of the component "SelectedMovieInfo" with a new "key" is mounted) while the previous event handlers still exist and therefore all the event handlers will be called (if a console.log() is called, several logs can be seen by pressing the Escape key once). 3)Finally, if there is the clean up call back function: when a Movie is clicked, the "SelectedMovieInfo" component is mounted therefore the useEffect() callback function is called and registers the "handlePressEscape" event handler. now, because of the react strict mode, the component is unmounted and the registered event handler is removed. then the component is mounted again and the useEffect() callback registers the event handler in the event loop, so at the end only one event handler is registered because the first one was removed on component unmount. now if the Escape key is pressed only one log is printed. But if the clean up callback function does not exist: when a Movie is clicked, the useEffect() is called and registers the "handlePressEscape" event handler in the event loop. then the component is unmounted due to react strict mode and mounted again which creates and registers a new event handler function. now if the Escape key is pressed, both event handlers will be called which results in 2 logs
+    return () => {
+      document.removeEventListener('keydown', handlePressEscape);
+    };
+  }, [onCloseSelectedMovie]);
 
   const handleAddWatchedMovie = () => {
     if (!selectedMovie) return;
