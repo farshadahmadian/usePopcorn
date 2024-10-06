@@ -122,7 +122,7 @@ export default function App() {
     const fetchData = async function (): Promise<WatchedFilm[]> {
       try {
         // if query.length >= 3 is set as a condition, and if when the search query has exactly 3 characters no movies can be found, at the same moment the both states "isLoading" and "error" will be true, and in the return statement, for one moment "is Loading" is painted and immediately after that "no result" is painted. But, at any moment, only and exactly one of the 3 react elements inside the <Box></Box> (in the return statement) must be painted
-        if (!error && query.length >= 4 && !movies.length) setIsLoading(true);
+        if (!error && query.length >= 3) setIsLoading(true);
         const response = await fetch(
           `https://api.tvmaze.com/search/shows?q=${query}`,
           { signal: controller.signal }
@@ -491,11 +491,14 @@ const SelectedMovieInfo = ({
   )?.show.userRating;
 
   const summaryText = getSummary(summary);
+
   useEffect(() => {
+    let isMounted = true;
     const controller = new AbortController();
 
     // the return data type cannot be Promise<SelectedFilm> | Promise<null>
     const fetchSelectedMovie = async (): Promise<SelectedFilm | null> => {
+      console.log('fetching');
       setIsLoading(true);
       try {
         const response = await fetch(
@@ -505,7 +508,7 @@ const SelectedMovieInfo = ({
         const data = await response.json();
         // if (data?.status)
         if (data?.status === 400) throw new Error('Bad Request');
-        setSelectedMovie(data);
+        if (isMounted) setSelectedMovie(data);
         // return data;
         return Promise.resolve(data);
       } catch (error) {
@@ -515,7 +518,8 @@ const SelectedMovieInfo = ({
 
         // return Promise.reject(null); // Promise.reject(null) returns a rejected promise with the result null. a rejected promise throws an error instance (exception)
       } finally {
-        setIsLoading(false);
+        console.log('finally');
+        if (isMounted) setIsLoading(false);
         // setSelectedMovie(null)
       }
     };
@@ -523,19 +527,21 @@ const SelectedMovieInfo = ({
     fetchSelectedMovie();
 
     return () => {
+      console.log('unmounting');
       controller.abort();
+      isMounted = false;
     };
   }, [selectedImdbId]);
 
   // after clicking on a "Movie" (if the movie has the DETAILS), the "render" message will be logged 3 times and the "clean up" message will be logged 2 times. each of them will be called once because of the "react strict mode". so there are 2 real logs for "render" message and 1 real log for the "clean up" message. First the component is rendered, then painted, and then useEffec() call back function is called (1st real render message is logged). but because the other useEffec() updates a state, the component is re-rendered. this re-render causese the "name, which is in the dependency array" to update (because the other state (selectedMovie) is updated so name is selectedMovie.name). it will cause this useEffec() callback function to be called again, but before that the clean up function is called (the real clean up message). and now, the useEffec() callback function is called again to sync the effect with the state (2nd real render message)
   useEffect(() => {
-    console.log('render or re-render');
+    // console.log('render or re-render');
     document.title = name || 'usePopcorn';
     return () => {
       document.title = 'usePopcorn';
-      console.log(
+      /* console.log(
         `component 'SelectedMovieInfo' is re-rendered or unmounted. ${name}` // even after the component is unmounted and it is out of the stack, the clean up callback function which is registered in the event loop has access to the variable "name". This is because of "closure". The clean up callback function has access to all the variables not only in the scope of the useEffect(), but also in the scope of the "SelectedMovieInfo" function
-      );
+      ); */
     };
   }, [name]);
 
