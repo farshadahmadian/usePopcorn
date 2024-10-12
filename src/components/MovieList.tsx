@@ -1,5 +1,5 @@
 import { Film } from '../App';
-import { Movie } from './MoviePropsType';
+import { Movie } from './Movie';
 
 type MovieListPropsType = {
   movies: Film[];

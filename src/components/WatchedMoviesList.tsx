@@ -1,10 +1,11 @@
 import { WatchedFilm } from '../App';
-import { WatchedMovie } from './WatchedMoviePropsType';
+import { WatchedMovie } from './WatchedMovie';
 
 type WatchedMoviesListPropsType = {
   watched: WatchedFilm[];
   onRemoveWatchedMovie: (watchedMovieId: number) => void;
 };
+
 export const WatchedMoviesList = ({
   watched,
   onRemoveWatchedMovie,

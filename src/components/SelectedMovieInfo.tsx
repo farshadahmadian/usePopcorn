@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { WatchedFilm, SelectedFilm } from '../App';
 import { Loader } from './Loader';
 import StarRating from './StarRating/StarRating';
@@ -35,6 +35,10 @@ export const SelectedMovieInfo = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [userRating, setUserRating] = useState<number>(0);
   // const [isInWatchedList, setIsInWatchedList] = useState<boolean>(false);
+
+  // countRef.current is the number of the times that the user clicks on a rating star but before clicking on the add button, they change their mind and choose a new rating. It cannot be a normal variable, because every time that "userRating" state is updated (the user changes their mind), the component is re-rendered and the normal variable will be initialized again (reset) so always after clicking the "add" button, the norma variable will have the value 1. A state is not the best option either, because the value of the variable is not supposed to update the DOM and updating the value does not need to re-render the component. Therefore, "ref" is the best option here to have a variable which 1)persists its value during a render and 2)updating ref.current does not cause a re-render
+  const countRef = useRef<number>(0);
+
   const {
     id,
     name,
@@ -125,8 +129,17 @@ export const SelectedMovieInfo = ({
     };
   }, [onCloseSelectedMovie]);
 
+  useEffect(() => {
+    if (userRating) countRef.current++;
+  }, [userRating]);
+
   const handleAddWatchedMovie = () => {
     if (!selectedMovie) return;
+    // type watchedFilmWithRef = WatchedFilm & {
+    //   show: {
+    //     count?: number;
+    //   };
+    // };
     const watchedMovie: WatchedFilm = {
       score: average,
       show: {
@@ -140,6 +153,7 @@ export const SelectedMovieInfo = ({
         },
         runtime: runtime!,
         userRating,
+        ratingDecisionCounter: countRef.current,
       },
     };
     onAddWatchedMovie(watchedMovie);

@@ -31,6 +31,7 @@ export type WatchedFilm = Film & {
     runtime: number | null;
     rating: { average: number | null };
     userRating: number | null;
+    ratingDecisionCounter?: number;
   };
 };
 
@@ -49,7 +50,12 @@ export const average = (arr: (number | null)[]) =>
 
 export default function App() {
   const [movies, setMovies] = useState<Film[]>([]);
-  const [watched, setWatched] = useState<WatchedFilm[]>([]);
+  // const [watched, setWatched] = useState<WatchedFilm[]>(
+  //   JSON.parse(localStorage.getItem('watchedMovies') || '[]') || []
+  // );
+  const [watched, setWatched] = useState<WatchedFilm[]>(() => {
+    return JSON.parse(localStorage.getItem('watchedMovies') || '[]') || [];
+  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [query, setQuery] = useState<string>('');
@@ -69,18 +75,32 @@ export default function App() {
         return prevState;
       return [...prevState, movie];
     });
+
+    // localStorage.setItem('watchedMovies', JSON.stringify([...watched, movie]));
+    // localStorage.setItem("watchedMovies", JSON.stringify(watched)) // "watched" is a "stale" state here
   };
 
   const handleRemoveWatchedMovie = (watchedMovieId: number) => {
     setWatched(prevState =>
       prevState.filter(watchedMovie => watchedMovie.show.id !== watchedMovieId)
     );
+
+    // localStorage.setItem(
+    //   'watchedMovies',
+    //   JSON.stringify(
+    //     watched.filter(watchedMovie => watchedMovie.show.id !== watchedMovieId)
+    //   )
+    // );
   };
 
   const handleSelectedMovie = (id: number | null, imdbId: string | null) => {
     setSelectedImdbId(imdbId);
     id === selectedId ? setSelectedId(null) : setSelectedId(id);
   };
+
+  useEffect(() => {
+    localStorage.setItem('watchedMovies', JSON.stringify(watched));
+  }, [watched]);
 
   /* useEffect(() => {
     console.log("Only After the initial render (after componentDidMount)");
