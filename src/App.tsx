@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { Loader } from './components/Loader';
 import { ErrorMessage } from './components/ErrorMessage';
 import { Navbar } from './components/Navbar';
@@ -11,6 +11,7 @@ import { WatchedSummary } from './components/WatchedSummary';
 import { WatchedMoviesList } from './components/WatchedMoviesList';
 import { SelectedMovieInfo } from './components/SelectedMovieInfo';
 import { useMovies } from './hooks/useMovies';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
 export type Film = {
   score: number | null;
@@ -55,9 +56,6 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
-  const [watched, setWatched] = useState<WatchedFilm[]>(() => {
-    return JSON.parse(localStorage.getItem('watchedMovies') || '[]') || [];
-  });
   const [query, setQuery] = useState<string>('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedImdbId, setSelectedImdbId] = useState<string | null>(null);
@@ -66,6 +64,7 @@ export default function App() {
     query,
     handleCloseSelectedMovie
   );
+  const [watched, setWatched] = useLocalStorage([], 'watchedMovies');
 
   const handleAddWatchedMovie = (movie: WatchedFilm) => {
     setWatched(prevState => {
@@ -97,10 +96,6 @@ export default function App() {
     setSelectedImdbId(imdbId);
     id === selectedId ? setSelectedId(null) : setSelectedId(id);
   };
-
-  useEffect(() => {
-    localStorage.setItem('watchedMovies', JSON.stringify(watched));
-  }, [watched]);
 
   return (
     <>

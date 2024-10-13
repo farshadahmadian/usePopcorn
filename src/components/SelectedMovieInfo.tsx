@@ -3,6 +3,7 @@ import { WatchedFilm, SelectedFilm } from '../App';
 import { Loader } from './Loader';
 import StarRating from './StarRating/StarRating';
 import { ErrorMessage } from './ErrorMessage';
+import { useKey } from '../hooks/useKey';
 
 const getSummary = (summary: string | null | undefined) => {
   if (!summary) return '';
@@ -116,7 +117,9 @@ export const SelectedMovieInfo = ({
     };
   }, [name]);
 
-  useEffect(() => {
+  useKey('Escape', onCloseSelectedMovie);
+
+  /* useEffect(() => {
     const handlePressEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onCloseSelectedMovie();
@@ -127,7 +130,7 @@ export const SelectedMovieInfo = ({
     return () => {
       document.removeEventListener('keydown', handlePressEscape);
     };
-  }, [onCloseSelectedMovie]);
+  }, [onCloseSelectedMovie]); */
 
   useEffect(() => {
     if (userRating) countRef.current++;
